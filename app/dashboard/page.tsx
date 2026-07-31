@@ -1,14 +1,24 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { Navbar } from "@/components/Navbar";
+import { DashboardLayout } from "@/components/DashboardLayout";
 import { DashboardSync } from "@/components/DashboardSync";
-import { DashboardMockup } from "@/components/DashboardMockup";
-import { Footer } from "@/components/Footer";
+import { StatCard } from "@/components/StatCard";
+import { ChartCard } from "@/components/ChartCard";
+import { InsightsCard } from "@/components/InsightsCard";
+import { CampaignTable } from "@/components/CampaignTable";
+import { ReviewTable } from "@/components/ReviewTable";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, Sparkles, UserCheck } from "lucide-react";
+import {
+  ShieldCheck,
+  Sparkles,
+  UserCheck,
+  Users,
+  DollarSign,
+  TrendingUp,
+} from "lucide-react";
 
 export default async function DashboardPage() {
-  // Server-side authentication check using auth() from @clerk/nextjs/server
+  // Server-side authentication guard
   const { userId } = await auth();
 
   if (!userId) {
@@ -16,53 +26,134 @@ export default async function DashboardPage() {
   }
 
   const user = await currentUser();
-  const primaryEmail = user?.primaryEmailAddress?.emailAddress || "owner@example.com";
+  const ownerName = user?.firstName ? `${user.firstName}'s Business` : "ABC Restaurant";
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#09090B] text-zinc-100 selection:bg-purple-500/30 selection:text-purple-200">
-      <Navbar />
-
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-        {/* Welcome Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-8 rounded-3xl border border-white/10 bg-gradient-to-r from-[#121218] via-[#161424] to-[#121218] shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-80 h-80 bg-purple-600/10 blur-[100px] rounded-full pointer-events-none" />
-
-          <div className="space-y-2 z-10">
-            <div className="flex items-center gap-2">
-              <Badge variant="emerald" className="gap-1">
-                <ShieldCheck className="h-3.5 w-3.5" /> Authenticated Session
-              </Badge>
+    <DashboardLayout>
+      {/* Header */}
+      <div className="space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-[#27272A]">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                Good Morning, {ownerName} 👋
+              </h1>
             </div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-              Welcome back, <span className="text-gradient-primary">{user?.firstName || "Business Owner"}</span>
-            </h1>
-            <p className="text-zinc-400 text-sm flex items-center gap-2">
-              <UserCheck className="h-4 w-4 text-purple-400" />
-              Signed in as <code className="text-purple-300 font-mono">{primaryEmail}</code>
-            </p>
+            <div className="flex items-center gap-2 text-xs text-zinc-400">
+              <span className="font-semibold text-zinc-200">Business Health Overview</span>
+              <span>•</span>
+              <span>Here's what's happening with your business today.</span>
+            </div>
           </div>
 
-          <div className="z-10 flex items-center gap-3">
-            <Badge variant="purple" className="px-3 py-1.5 text-xs font-semibold gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-purple-400 animate-pulse" />
-              ReviveAI Recovery Engine Online
-            </Badge>
+          <div className="flex items-center gap-3">
+            <span className="text-xs px-3 py-1.5 rounded-lg bg-[#18181B] border border-[#27272A] text-zinc-300 font-mono inline-flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              Live Sync Active
+            </span>
           </div>
         </div>
 
-        {/* Sync with Express MongoDB Backend */}
+        {/* MongoDB Express Backend Sync Component */}
         <DashboardSync />
+      </div>
 
-        {/* Main Dashboard Control Mockup */}
-        <div className="space-y-4 pt-4">
-          <h2 className="text-xl font-bold text-white tracking-tight">
-            Live Business Recovery Control Center
-          </h2>
-          <DashboardMockup />
+      {/* First Row: 4 KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Average Rating"
+          value="4.6 ⭐"
+          iconName="star"
+          trend="+0.3 rating"
+          trendType="positive"
+          description="Based on 1,420 total reviews"
+          iconBgColor="bg-amber-500/10"
+          iconColor="text-amber-400"
+        />
+        <StatCard
+          title="Reviews This Month"
+          value="248"
+          iconName="message"
+          trend="+18%"
+          trendType="positive"
+          description="vs 210 reviews last month"
+          iconBgColor="bg-blue-500/10"
+          iconColor="text-blue-400"
+        />
+        <StatCard
+          title="Negative Reviews"
+          value="12"
+          iconName="alert"
+          trend="-22%"
+          trendType="positive"
+          description="Reduced from 16 last month"
+          iconBgColor="bg-red-500/10"
+          iconColor="text-red-400"
+        />
+        <StatCard
+          title="AI Business Health Score"
+          value="91%"
+          iconName="shield"
+          badgeText="Excellent"
+          description="Top 5% local business retention"
+          iconBgColor="bg-emerald-500/10"
+          iconColor="text-emerald-400"
+        />
+      </div>
+
+      {/* Second Row: Charts */}
+      <ChartCard />
+
+      {/* Third Row: AI Insights Card */}
+      <InsightsCard />
+
+      {/* Fourth Row: Recovery Campaigns Table */}
+      <CampaignTable />
+
+      {/* Fifth Row: Recent Reviews Table */}
+      <ReviewTable />
+
+      {/* Sixth Row: Business Performance Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="dashboard-card p-5 flex items-center justify-between">
+          <div className="space-y-1">
+            <span className="text-xs font-medium text-zinc-400">Returning Customers</span>
+            <div className="text-2xl font-bold text-white tracking-tight">1,420</div>
+            <div className="text-[11px] text-emerald-400 font-medium inline-flex items-center gap-1">
+              <TrendingUp className="h-3 w-3" /> +14% month-over-month
+            </div>
+          </div>
+          <div className="p-3 rounded-xl bg-blue-600/10 border border-blue-500/20 text-blue-400">
+            <Users className="h-6 w-6" />
+          </div>
         </div>
-      </main>
 
-      <Footer />
-    </div>
+        <div className="dashboard-card p-5 flex items-center justify-between">
+          <div className="space-y-1">
+            <span className="text-xs font-medium text-zinc-400">Recovered Customers</span>
+            <div className="text-2xl font-bold text-white tracking-tight">84</div>
+            <div className="text-[11px] text-emerald-400 font-medium inline-flex items-center gap-1">
+              <TrendingUp className="h-3 w-3" /> 85.7% recovery rate
+            </div>
+          </div>
+          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+            <UserCheck className="h-6 w-6" />
+          </div>
+        </div>
+
+        <div className="dashboard-card p-5 flex items-center justify-between">
+          <div className="space-y-1">
+            <span className="text-xs font-medium text-zinc-400">Revenue Saved</span>
+            <div className="text-2xl font-bold text-white tracking-tight">$6,280</div>
+            <div className="text-[11px] text-emerald-400 font-medium inline-flex items-center gap-1">
+              <TrendingUp className="h-3 w-3" /> +$1,120 vs previous 30d
+            </div>
+          </div>
+          <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+            <DollarSign className="h-6 w-6" />
+          </div>
+        </div>
+      </div>
+    </DashboardLayout>
   );
 }

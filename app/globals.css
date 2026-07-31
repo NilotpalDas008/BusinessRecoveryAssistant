@@ -3,12 +3,15 @@
 @layer base {
   :root {
     --background: #09090b;
+    --surface: #111113;
+    --card: #18181b;
+    --border: #27272a;
     --foreground: #f4f4f5;
-    --card: #121215;
-    --card-foreground: #f4f4f5;
-    --border: rgba(255, 255, 255, 0.08);
-    --primary: #6366f1;
-    --accent-emerald: #10b981;
+    --muted: #a1a1aa;
+    --primary: #3b82f6;
+    --emerald: #10b981;
+    --amber: #f59e0b;
+    --red: #ef4444;
   }
 
   html {
@@ -23,6 +26,40 @@
     overflow-x: hidden;
   }
 }
+
+/* Custom Enterprise Card & Border styles */
+.dashboard-card {
+  background-color: #18181b;
+  border: 1px solid #27272a;
+  border-radius: 0.75rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dashboard-card:hover {
+  border-color: #3f3f46;
+}
+
+.dashboard-surface {
+  background-color: #111113;
+  border-color: #27272a;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #09090b;
+}
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
 
 /* Custom background grid and glow utilities */
 .bg-grid-pattern {

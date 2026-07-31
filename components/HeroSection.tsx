@@ -51,7 +51,7 @@ export function HeroSection() {
                 </SignInButton>
               </Show>
               <Show when="signed-in">
-                <Link href="#features">
+                <Link href="/dashboard">
                   <Button variant="gradient" size="lg" className="w-full sm:w-auto">
                     Explore Recovery Dashboard
                     <ArrowRight className="h-5 w-5" />
