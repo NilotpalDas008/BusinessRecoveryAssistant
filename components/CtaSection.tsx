@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "./ui/button";
 import { Sparkles, ArrowRight, ShieldCheck } from "lucide-react";
+import { Show, SignInButton, SignUpButton } from "@clerk/nextjs";
 
 export function CtaSection() {
   return (
@@ -26,17 +27,27 @@ export function CtaSection() {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-              <Link href="/sign-up" className="w-full sm:w-auto">
-                <Button variant="gradient" size="lg" className="w-full sm:w-auto">
-                  Get Started
-                  <ArrowRight className="h-5 w-5" />
-                </Button>
-              </Link>
-              <Link href="/sign-in" className="w-full sm:w-auto">
-                <Button variant="outline" size="lg" className="w-full sm:w-auto">
-                  Sign In
-                </Button>
-              </Link>
+              <Show when="signed-out">
+                <SignUpButton mode="modal">
+                  <Button variant="gradient" size="lg" className="w-full sm:w-auto">
+                    Get Started
+                    <ArrowRight className="h-5 w-5" />
+                  </Button>
+                </SignUpButton>
+                <SignInButton mode="modal">
+                  <Button variant="outline" size="lg" className="w-full sm:w-auto">
+                    Sign In
+                  </Button>
+                </SignInButton>
+              </Show>
+              <Show when="signed-in">
+                <Link href="#features">
+                  <Button variant="gradient" size="lg" className="w-full sm:w-auto">
+                    Go to Features
+                    <ArrowRight className="h-5 w-5" />
+                  </Button>
+                </Link>
+              </Show>
             </div>
 
             <div className="pt-4 flex items-center justify-center gap-2 text-xs text-zinc-400">

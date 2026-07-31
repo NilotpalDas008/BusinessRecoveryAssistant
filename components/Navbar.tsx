@@ -5,6 +5,12 @@ import Link from "next/link";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Sparkles, Menu, X, ArrowRight } from "lucide-react";
+import {
+  Show,
+  SignInButton,
+  SignUpButton,
+  UserButton,
+} from "@clerk/nextjs";
 
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -48,17 +54,30 @@ export function Navbar() {
 
         {/* Action CTAs */}
         <div className="hidden md:flex items-center gap-3">
-          <Link href="/sign-in">
-            <Button variant="outline" size="sm">
-              Sign In
-            </Button>
-          </Link>
-          <Link href="/sign-up">
-            <Button variant="gradient" size="sm">
-              Get Started
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
+          <Show when="signed-out">
+            <SignInButton mode="modal">
+              <Button variant="outline" size="sm">
+                Sign In
+              </Button>
+            </SignInButton>
+            <SignUpButton mode="modal">
+              <Button variant="gradient" size="sm">
+                Get Started
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </SignUpButton>
+          </Show>
+          <Show when="signed-in">
+            <div className="flex items-center gap-3">
+              <UserButton
+                appearance={{
+                  elements: {
+                    userButtonAvatarBox: "w-9 h-9 border border-purple-500/40 shadow-lg shadow-purple-950/50",
+                  },
+                }}
+              />
+            </div>
+          </Show>
         </div>
 
         {/* Mobile menu trigger */}
@@ -93,17 +112,25 @@ export function Navbar() {
             <Badge variant="purple">Coming Soon</Badge>
           </div>
           <div className="pt-4 border-t border-white/10 flex flex-col gap-3">
-            <Link href="/sign-in" className="w-full">
-              <Button variant="outline" className="w-full justify-center">
-                Sign In
-              </Button>
-            </Link>
-            <Link href="/sign-up" className="w-full">
-              <Button variant="gradient" className="w-full justify-center">
-                Get Started
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
+            <Show when="signed-out">
+              <SignInButton mode="modal">
+                <Button variant="outline" className="w-full justify-center">
+                  Sign In
+                </Button>
+              </SignInButton>
+              <SignUpButton mode="modal">
+                <Button variant="gradient" className="w-full justify-center">
+                  Get Started
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </SignUpButton>
+            </Show>
+            <Show when="signed-in">
+              <div className="flex items-center gap-3 py-2">
+                <UserButton />
+                <span className="text-sm font-medium text-zinc-200">Account Managed</span>
+              </div>
+            </Show>
           </div>
         </div>
       )}
