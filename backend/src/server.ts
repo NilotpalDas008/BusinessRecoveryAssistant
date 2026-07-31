@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { connectDB } from "./config/database";
 import businessOwnerRoutes from "./routes/businessOwner.routes";
+import dashboardRoutes from "./routes/dashboard.routes";
 
 // Load environment variables
 dotenv.config();
@@ -19,6 +20,7 @@ connectDB();
 
 // API Routes
 app.use("/api/business-owner", businessOwnerRoutes);
+app.use("/dashboard", dashboardRoutes);
 
 // Health check endpoint
 app.get("/health", (_req: Request, res: Response) => {
