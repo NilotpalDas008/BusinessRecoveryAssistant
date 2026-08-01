@@ -161,7 +161,6 @@ Future releases will support automated communication through:
 
 - WhatsApp
 - Email
-- SMS
 - Google Business Review Replies
 
 ---
