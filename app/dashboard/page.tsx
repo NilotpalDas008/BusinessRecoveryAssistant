@@ -2,6 +2,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { DashboardSync } from "@/components/DashboardSync";
+import { ReviewImportSection } from "@/components/ReviewImportSection";
 import { StatCard } from "@/components/StatCard";
 import { ChartCard } from "@/components/ChartCard";
 import { InsightsCard } from "@/components/InsightsCard";
@@ -57,6 +58,9 @@ export default async function DashboardPage() {
         {/* MongoDB Express Backend Sync Component */}
         <DashboardSync />
       </div>
+
+      {/* Review Import Section */}
+      <ReviewImportSection />
 
       {/* First Row: 4 KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

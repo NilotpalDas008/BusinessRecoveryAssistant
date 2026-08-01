@@ -13,12 +13,10 @@
 .DS_Store
 *.pem
 
-# env files (can opt-in for committing if needed)
-
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# env files
+.env
+.env*.local
+backend/.env
 
 # clerk configuration (can include secrets)
 /.clerk/

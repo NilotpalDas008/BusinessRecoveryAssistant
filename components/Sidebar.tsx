@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   MessageSquareText,
@@ -21,19 +22,20 @@ interface SidebarProps {
   onTabChange?: (tab: string) => void;
 }
 
-export function Sidebar({ activeTab = "Dashboard", onTabChange }: SidebarProps) {
+export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
+  const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
   const navItems = [
-    { name: "Dashboard", icon: LayoutDashboard, href: "#dashboard" },
-    { name: "Reviews", icon: MessageSquareText, href: "#reviews", badge: "12 New" },
-    { name: "Analytics", icon: BarChart3, href: "#analytics" },
-    { name: "Customers", icon: Users, href: "#customers" },
-    { name: "Recovery Campaigns", icon: Zap, href: "#campaigns", badge: "Active" },
-    { name: "Marketing", icon: Share2, href: "#marketing" },
-    { name: "Reports", icon: FileSpreadsheet, href: "#reports" },
-    { name: "Integrations", icon: Plug, href: "#integrations" },
-    { name: "Settings", icon: Settings, href: "#settings" },
+    { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
+    { name: "Reviews", icon: MessageSquareText, href: "/dashboard#reviews", badge: "12 New" },
+    { name: "Analytics", icon: BarChart3, href: "/analytics" },
+    { name: "Customers", icon: Users, href: "/dashboard#customers" },
+    { name: "Recovery Campaigns", icon: Zap, href: "/dashboard#campaigns", badge: "Active" },
+    { name: "Marketing", icon: Share2, href: "/dashboard#marketing" },
+    { name: "Reports", icon: FileSpreadsheet, href: "/dashboard#reports" },
+    { name: "Integrations", icon: Plug, href: "/dashboard#integrations" },
+    { name: "Settings", icon: Settings, href: "/dashboard#settings" },
   ];
 
   return (
@@ -46,11 +48,12 @@ export function Sidebar({ activeTab = "Dashboard", onTabChange }: SidebarProps) 
       <div className="py-4 px-2 space-y-1">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = activeTab === item.name;
+          const isActive = pathname === item.href || (activeTab && activeTab === item.name);
 
           return (
-            <button
+            <Link
               key={item.name}
+              href={item.href}
               onClick={() => onTabChange?.(item.name)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-colors relative group ${
                 isActive
@@ -81,7 +84,7 @@ export function Sidebar({ activeTab = "Dashboard", onTabChange }: SidebarProps) 
                   {item.badge}
                 </span>
               )}
-            </button>
+            </Link>
           );
         })}
       </div>

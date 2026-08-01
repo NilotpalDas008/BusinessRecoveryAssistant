@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import { connectDB } from "./config/database";
 import businessOwnerRoutes from "./routes/businessOwner.routes";
 import dashboardRoutes from "./routes/dashboard.routes";
+import reviewRoutes from "./review-analysis/routes/review.routes";
 
 // Load environment variables
 dotenv.config();
@@ -21,6 +22,8 @@ connectDB();
 // API Routes
 app.use("/api/business-owner", businessOwnerRoutes);
 app.use("/dashboard", dashboardRoutes);
+app.use("/api/reviews", reviewRoutes);
+app.use("/api/v1", reviewRoutes);
 
 // Health check endpoint
 app.get("/health", (_req: Request, res: Response) => {

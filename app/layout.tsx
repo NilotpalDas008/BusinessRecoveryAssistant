@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
+import { AnalysisProvider } from "@/context/AnalysisContext";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -46,7 +47,9 @@ export default function RootLayout({
     >
       <body className="bg-[#09090B] text-zinc-100 min-h-full flex flex-col selection:bg-purple-500/30 selection:text-purple-200">
         <ClerkProvider>
-          {children}
+          <AnalysisProvider>
+            {children}
+          </AnalysisProvider>
         </ClerkProvider>
       </body>
     </html>
