@@ -8,6 +8,8 @@ export interface SentimentScore {
   neutral: number;
   negative: number;
   overallScore: number;
+  healthLabel?: "Excellent" | "Very Good" | "Good" | "Fair" | "Needs Improvement" | "Critical";
+  statusMessage?: string;
 }
 
 /**
@@ -36,6 +38,7 @@ export interface RecurringIssue {
   issue: string;
   count: number;
   percentage: number;
+  severity?: "Critical" | "High" | "Medium" | "Low";
 }
 
 /**
@@ -45,4 +48,5 @@ export interface Summary {
   totalReviews: number;
   averageRating: number;
   overallSentiment: Sentiment;
+  executiveSummary?: string;
 }

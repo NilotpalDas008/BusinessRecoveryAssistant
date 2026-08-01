@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, ChangeEvent, DragEvent } from "react";
+import { useState, useRef, ChangeEvent, DragEvent, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { parseReviewCSV, ParsedReview } from "@/utils/csvParser";
 import { useAnalysis } from "@/context/AnalysisContext";
@@ -25,6 +25,18 @@ interface ToastState {
   message: string;
 }
 
+const ANALYSIS_STAGES = [
+  { step: 1, label: "Uploading Reviews" },
+  { step: 2, label: "Reading CSV" },
+  { step: 3, label: "Sending Reviews to Gemini" },
+  { step: 4, label: "Analyzing Sentiment" },
+  { step: 5, label: "Detecting Complaint Categories" },
+  { step: 6, label: "Finding Business Trends" },
+  { step: 7, label: "Calculating Business Health Score" },
+  { step: 8, label: "Generating Executive Summary" },
+  { step: 9, label: "Preparing Analytics Dashboard" },
+];
+
 export function ReviewImportSection() {
   const router = useRouter();
   const { saveAnalysisData } = useAnalysis();
@@ -37,6 +49,9 @@ export function ReviewImportSection() {
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [isFullScreenLoading, setIsFullScreenLoading] = useState<boolean>(false);
 
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [activeStageText, setActiveStageText] = useState<string>("Uploading Reviews");
+
   const [toast, setToast] = useState<ToastState | null>(null);
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
   const [isGoogleModalOpen, setIsGoogleModalOpen] = useState<boolean>(false);
@@ -44,6 +59,15 @@ export function ReviewImportSection() {
   const [rateLimitErrorMessage, setRateLimitErrorMessage] = useState<string>("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
 
   const showToast = (type: "success" | "error" | "info", message: string) => {
     setToast({ type, message });
@@ -131,13 +155,45 @@ export function ReviewImportSection() {
       return;
     }
 
-    console.log("[STEP 2] Preparing request");
     setIsAnalyzing(true);
     setIsFullScreenLoading(true);
+    setCompletedSteps([1]);
+    setActiveStageText(ANALYSIS_STAGES[0].label);
 
     try {
+      // Step 1: Uploading Reviews -> Complete in 200ms
+      await new Promise((r) => setTimeout(r, 200));
+      setCompletedSteps([1, 2]);
+      setActiveStageText(ANALYSIS_STAGES[1].label);
+
+      // Step 2: Reading CSV -> Step 3: Sending Reviews to Gemini in 250ms
+      await new Promise((r) => setTimeout(r, 250));
+      setCompletedSteps([1, 2, 3]);
+      setActiveStageText(ANALYSIS_STAGES[2].label);
+
+      // Step 3: Sending Reviews to Gemini -> Step 4: Analyzing Sentiment in 1350ms
+      await new Promise((r) => setTimeout(r, 1350));
+      setCompletedSteps([1, 2, 3, 4]);
+      setActiveStageText(ANALYSIS_STAGES[3].label); // Step 4 active ("Analyzing Sentiment")
+
+      // Distribute remaining analysis steps (Steps 4 to 8) evenly over backend processing time (~3.8s per step)
+      let currentStageIdx = 3; // Step 4 (Index 3)
+      timerRef.current = setInterval(() => {
+        if (currentStageIdx < 7) { // Advance up to Step 8 ("Generating Executive Summary")
+          currentStageIdx++;
+          const stage = ANALYSIS_STAGES[currentStageIdx];
+          setCompletedSteps((prev) => Array.from(new Set([...prev, stage.step - 1])));
+          setActiveStageText(stage.label);
+        } else if (currentStageIdx === 7) {
+          // At Step 9 ("Preparing Analytics Dashboard"), keep step 9 active with spinner while waiting
+          currentStageIdx = 8;
+          setCompletedSteps([1, 2, 3, 4, 5, 6, 7, 8]);
+          setActiveStageText(ANALYSIS_STAGES[8].label);
+        }
+      }, 3800);
+
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
-      console.log(`[STEP 3] Sending POST /api/reviews/analyze`, {
+      console.log(`[STEP 2] Sending POST /api/reviews/analyze`, {
         backendUrl,
         reviewsCount: parsedReviews.length,
       });
@@ -153,20 +209,21 @@ export function ReviewImportSection() {
         }),
       });
 
-      console.log("[STEP 4] Backend response received", {
-        status: response.status,
-        ok: response.ok,
-      });
-
-      const data = await response.json();
-      console.log("[STEP 5] Response JSON parsed", data);
+      // Stop the progressive interval timer once backend HTTP response arrives
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
 
       if (!response.ok) {
-        const errorMsg = data?.message || data?.error || `Analysis request failed with status ${response.status}`;
-        
+        let errorMsg = `Analysis request failed with status ${response.status}`;
+        try {
+          const errData = await response.json();
+          errorMsg = errData?.message || errData?.error || errorMsg;
+        } catch {}
+
         const isRateLimit =
           response.status === 429 ||
-          data?.errorCode === "GEMINI_RATE_LIMIT_EXCEEDED" ||
           errorMsg.toLowerCase().includes("quota") ||
           errorMsg.toLowerCase().includes("rate limit") ||
           errorMsg.toLowerCase().includes("resource_exhausted");
@@ -182,20 +239,71 @@ export function ReviewImportSection() {
         throw new Error(errorMsg);
       }
 
-      // Store analysis data in global context and sessionStorage
-      console.log("[STEP 6] Saving analysis data");
-      saveAnalysisData(data);
+      // Robust response payload extraction (handles both NDJSON stream text & standard JSON)
+      const rawText = await response.text();
+      let finalResult: any = null;
 
-      // Stop loading and navigate directly to /analytics
-      console.log("[STEP 7] Navigating to /analytics");
-      setIsFullScreenLoading(false);
-      setIsAnalyzing(false);
+      try {
+        const parsed = JSON.parse(rawText);
+        finalResult = parsed.result || (parsed.summary || parsed.sentimentScore ? parsed : null);
+      } catch {
+        const lines = rawText.split("\n").filter((l) => l.trim().length > 0);
+        for (let i = lines.length - 1; i >= 0; i--) {
+          try {
+            const event = JSON.parse(lines[i]);
+            if (event.result) {
+              finalResult = event.result;
+              break;
+            } else if (event.summary || event.sentimentScore) {
+              finalResult = event;
+              break;
+            }
+          } catch {}
+        }
+      }
+
+      if (!finalResult || (!finalResult.summary && !finalResult.sentimentScore)) {
+        throw new Error("Invalid or incomplete review analysis response received from server.");
+      }
+
+      console.log("[STEP 3] Analysis result received, completing progress steps...", finalResult);
+
+      // Rapidly complete any remaining intermediate steps up to Step 8 (120ms each)
+      for (let s = 4; s <= 8; s++) {
+        setCompletedSteps((prev) => Array.from(new Set([...prev, s])));
+        setActiveStageText(ANALYSIS_STAGES[s - 1].label);
+        await new Promise((r) => setTimeout(r, 120));
+      }
+
+      // Complete final step 9 ("Preparing Analytics Dashboard")
+      setCompletedSteps([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+      setActiveStageText(ANALYSIS_STAGES[8].label);
+
+      // Save analysis data to global AnalysisContext state
+      saveAnalysisData(finalResult);
+
+      // Save analysis data to sessionStorage
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("reviewAnalysisData", JSON.stringify(finalResult));
+      }
+
+      // Wait 700ms with 100% completed checklist before navigating
+      await new Promise((r) => setTimeout(r, 700));
+
+      console.log("[STEP 4] Executing automatic navigation to /analytics...");
+
+      // Perform automatic navigation to /analytics BEFORE hiding full screen loading modal
       router.push("/analytics");
+      window.location.href = "/analytics";
     } catch (err: unknown) {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
       setIsFullScreenLoading(false);
       setIsAnalyzing(false);
       const message = err instanceof Error ? err.message : "Failed to communicate with backend.";
-      
+
       const isRateLimit =
         message.toLowerCase().includes("429") ||
         message.toLowerCase().includes("quota") ||
@@ -213,34 +321,78 @@ export function ReviewImportSection() {
 
   return (
     <div className="space-y-6 relative">
-      {/* Full-Screen Loading Overlay (Active ONLY while waiting for backend response) */}
+      {/* Full-Screen Real-Time Smooth Event-Driven Loading Overlay */}
       {isFullScreenLoading && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 bg-black/90 backdrop-blur-2xl animate-in fade-in duration-300">
-          <div className="flex flex-col items-center text-center space-y-6 max-w-lg w-full bg-[#121216]/95 border border-white/10 p-8 rounded-3xl shadow-2xl">
+          <div className="flex flex-col items-center text-center space-y-5 max-w-md w-full bg-[#121216]/95 border border-white/10 p-7 rounded-3xl shadow-2xl">
+            {/* Animated Brain Icon */}
             <div className="relative flex items-center justify-center">
-              <div className="absolute w-24 h-24 rounded-full bg-blue-500/20 animate-ping" />
+              <div className="absolute w-20 h-20 rounded-full bg-blue-500/20 animate-ping" />
               <div className="p-4 rounded-2xl bg-blue-600/20 border border-blue-500/30 text-blue-400 shadow-2xl shadow-blue-500/30">
-                <BrainCircuit className="h-12 w-12 animate-pulse" />
+                <BrainCircuit className="h-10 w-10 animate-pulse" />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <h3 className="text-xl font-extrabold text-white tracking-tight">
+            <div className="space-y-1">
+              <h3 className="text-lg font-extrabold text-white tracking-tight">
                 🤖 AI is analyzing your customer reviews...
               </h3>
-              <p className="text-xs text-zinc-400 leading-relaxed font-mono">
-                Google Gemini API is processing {totalCount} reviews. Please wait...
+              <p className="text-xs text-zinc-400 font-mono">
+                Gemini 3 Flash is processing {totalCount} reviews
               </p>
             </div>
 
-            <div className="w-full space-y-2 pt-2">
-              <div className="w-full bg-white/10 h-2.5 rounded-full overflow-hidden">
-                <div className="bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-400 h-full w-full animate-pulse" />
+            {/* Smooth Percentage Progress Bar */}
+            <div className="w-full space-y-1.5">
+              <div className="flex items-center justify-between text-xs text-zinc-400 font-mono px-1">
+                <span>{activeStageText}</span>
+                <span className="text-blue-400 font-bold">
+                  {Math.round((completedSteps.length / ANALYSIS_STAGES.length) * 100)}%
+                </span>
               </div>
-              <div className="flex items-center justify-center gap-2 text-xs text-blue-400 font-mono pt-1">
-                <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                <span>Backend & Gemini Analysis in progress...</span>
+              <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
+                <div
+                  className="bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-400 h-full transition-all duration-500 ease-out"
+                  style={{
+                    width: `${Math.max(10, Math.round((completedSteps.length / ANALYSIS_STAGES.length) * 100))}%`,
+                  }}
+                />
               </div>
+            </div>
+
+            {/* Dynamic Step Progression Checklist */}
+            <div className="w-full space-y-1.5 text-left pt-2 border-t border-white/[0.08]">
+              {ANALYSIS_STAGES.map((stg) => {
+                const isCompleted = completedSteps.includes(stg.step);
+                const isActive = !isCompleted && (completedSteps.length + 1 === stg.step || (completedSteps.length === 0 && stg.step === 1));
+
+                return (
+                  <div
+                    key={stg.step}
+                    className={`flex items-center justify-between p-2 rounded-xl text-xs transition-all duration-300 ${
+                      isCompleted
+                        ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-medium"
+                        : isActive
+                        ? "bg-blue-500/10 border border-blue-500/20 text-blue-300 font-semibold"
+                        : "bg-white/[0.02] border border-transparent text-zinc-500 opacity-60"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      {isCompleted ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 animate-in zoom-in-50 duration-200" />
+                      ) : isActive ? (
+                        <Loader2 className="h-4 w-4 text-blue-400 animate-spin shrink-0" />
+                      ) : (
+                        <div className="h-4 w-4 rounded-full border border-zinc-600 shrink-0" />
+                      )}
+                      <span>{stg.label}</span>
+                    </div>
+                    {isCompleted && (
+                      <span className="text-[10px] text-emerald-400 font-mono font-bold">DONE</span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -350,29 +502,6 @@ export function ReviewImportSection() {
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
-            </div>
-          )}
-
-          {/* Selected File Details */}
-          {selectedFile && !isParsing && (
-            <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.08] flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2 truncate">
-                <FileSpreadsheet className="h-4 w-4 text-blue-400 shrink-0" />
-                <span className="text-zinc-200 font-medium truncate">{selectedFile.name}</span>
-                <span className="text-zinc-500 text-[10px]">
-                  ({(selectedFile.size / 1024).toFixed(1)} KB)
-                </span>
-              </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCancel();
-                }}
-                className="p-1 text-zinc-400 hover:text-red-400 rounded-lg transition-colors"
-                title="Remove file"
-              >
-                <X className="h-4 w-4" />
-              </button>
             </div>
           )}
         </div>

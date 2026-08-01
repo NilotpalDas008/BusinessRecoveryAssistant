@@ -1,5 +1,3 @@
-import { GoogleGenAI } from "@google/genai";
-
 /**
  * Base custom typed error for Gemini API failures and response parsing errors.
  */
@@ -12,7 +10,7 @@ export class GeminiError extends Error {
     this.name = "GeminiError";
     this.statusCode = statusCode;
     this.errorCode = errorCode;
-    Object.setPrototypeOf(this, GeminiError.prototype);
+    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 
@@ -20,6 +18,7 @@ export class GeminiInvalidRequestError extends GeminiError {
   constructor(message: string = "Invalid request payload sent to Gemini API.") {
     super(message, "GEMINI_INVALID_REQUEST", 400);
     this.name = "GeminiInvalidRequestError";
+    Object.setPrototypeOf(this, GeminiInvalidRequestError.prototype);
   }
 }
 
@@ -27,6 +26,7 @@ export class GeminiAuthError extends GeminiError {
   constructor(message: string = "Authentication failed. Invalid or missing Gemini API key.") {
     super(message, "GEMINI_AUTH_ERROR", 401);
     this.name = "GeminiAuthError";
+    Object.setPrototypeOf(this, GeminiAuthError.prototype);
   }
 }
 
@@ -34,6 +34,7 @@ export class GeminiRateLimitError extends GeminiError {
   constructor(message: string = "Gemini API rate limit exceeded. Please try again later.") {
     super(message, "GEMINI_RATE_LIMIT_EXCEEDED", 429);
     this.name = "GeminiRateLimitError";
+    Object.setPrototypeOf(this, GeminiRateLimitError.prototype);
   }
 }
 
@@ -41,6 +42,7 @@ export class GeminiInternalError extends GeminiError {
   constructor(message: string = "Gemini API experienced an internal error.") {
     super(message, "GEMINI_INTERNAL_ERROR", 500);
     this.name = "GeminiInternalError";
+    Object.setPrototypeOf(this, GeminiInternalError.prototype);
   }
 }
 
@@ -48,6 +50,7 @@ export class GeminiServiceUnavailableError extends GeminiError {
   constructor(message: string = "Gemini API service is currently unavailable.") {
     super(message, "GEMINI_SERVICE_UNAVAILABLE", 503);
     this.name = "GeminiServiceUnavailableError";
+    Object.setPrototypeOf(this, GeminiServiceUnavailableError.prototype);
   }
 }
 
@@ -55,6 +58,7 @@ export class GeminiInvalidJsonError extends GeminiError {
   constructor(message: string = "Failed to parse Gemini response as valid JSON.") {
     super(message, "INVALID_JSON_RESPONSE", 500);
     this.name = "GeminiInvalidJsonError";
+    Object.setPrototypeOf(this, GeminiInvalidJsonError.prototype);
   }
 }
 
@@ -62,6 +66,7 @@ export class GeminiEmptyResponseError extends GeminiError {
   constructor(message: string = "Received empty response content from Gemini API.") {
     super(message, "EMPTY_AI_RESPONSE", 503);
     this.name = "GeminiEmptyResponseError";
+    Object.setPrototypeOf(this, GeminiEmptyResponseError.prototype);
   }
 }
 
@@ -69,6 +74,7 @@ export class GeminiTimeoutError extends GeminiError {
   constructor(message: string = "Gemini API request timed out.") {
     super(message, "GEMINI_TIMEOUT", 503);
     this.name = "GeminiTimeoutError";
+    Object.setPrototypeOf(this, GeminiTimeoutError.prototype);
   }
 }
 
@@ -96,15 +102,14 @@ function delay(ms: number): Promise<void> {
 }
 
 /**
- * Service responsible solely for robust communication with Google Gemini API.
+ * Service responsible solely for robust communication with Google Gemini API via REST API.
  */
 export class GeminiService {
-  private aiInstance: GoogleGenAI | null = null;
   private modelName: string;
   private timeoutMs: number;
 
   constructor(
-    modelName: string = process.env.GEMINI_MODEL || "gemini-2.0-flash",
+    modelName: string = process.env.GEMINI_MODEL || "gemini-3-flash-preview",
     timeoutMs: number = 25000
   ) {
     this.modelName = modelName;
@@ -112,21 +117,7 @@ export class GeminiService {
   }
 
   /**
-   * Lazily initializes GoogleGenAI instance at runtime when prompt request is executed.
-   */
-  private getAiClient(): GoogleGenAI {
-    if (!this.aiInstance) {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new GeminiAuthError("GEMINI_API_KEY environment variable is missing.");
-      }
-      this.aiInstance = new GoogleGenAI({ apiKey });
-    }
-    return this.aiInstance;
-  }
-
-  /**
-   * Sends prompt to Gemini API, parses JSON response, and retries once with backoff upon failure.
+   * Sends prompt to Gemini REST API, parses JSON response, and retries once with backoff upon failure.
    *
    * @param prompt User or structured content prompt.
    * @param systemInstruction System instruction prompt for Gemini.
@@ -186,27 +177,75 @@ export class GeminiService {
   }
 
   /**
-   * Internal helper executing single call to Gemini API and JSON parsing.
+   * Internal helper executing single REST API call to Gemini API and JSON parsing.
    */
   private async executeGenerateJSON<T>(prompt: string, systemInstruction?: string): Promise<T> {
-    let rawText: string;
-    const client = this.getAiClient();
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new GeminiAuthError("GEMINI_API_KEY environment variable is missing.");
+    }
 
+    let textToSend = prompt;
+    if (systemInstruction && systemInstruction.trim().length > 0) {
+      textToSend = `System:\n${systemInstruction}\n\nUser:\n${prompt}`;
+    }
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.modelName}:generateContent`;
+
+    let response: Response;
     try {
       console.log("[STEP D] Calling Gemini", { model: this.modelName });
-      const response = await client.models.generateContent({
-        model: this.modelName,
-        contents: prompt,
-        config: {
-          systemInstruction,
-          responseMimeType: "application/json",
+      console.log("[STEP D1] Before fetch");
+      response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-goog-api-key": apiKey,
         },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: textToSend,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
+          },
+        }),
       });
-      rawText = response.text || "";
+      console.log("[STEP D2] Fetch completed", response.status);
+    } catch (err) {
+      throw this.mapError(err);
+    }
+
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status} ${response.statusText}`;
+      try {
+        const errorData = (await response.json()) as any;
+        if (errorData?.error?.message) {
+          errorMessage = errorData.error.message;
+        }
+      } catch {
+        // Fallback to HTTP status text
+      }
+      throw this.mapError({ status: response.status, message: errorMessage });
+    }
+
+    let data: any;
+    try {
+      console.log("[STEP D3] Parsing JSON");
+      data = await response.json();
+      console.log("[STEP D4] JSON parsed");
       console.log("[STEP E] Gemini returned response");
     } catch (err) {
       throw this.mapError(err);
     }
+
+    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     if (!rawText || rawText.trim().length === 0) {
       throw new GeminiEmptyResponseError();
@@ -228,12 +267,19 @@ export class GeminiService {
       return err;
     }
 
-    let rawMessage = err instanceof Error ? err.message : String(err);
+    let rawMessage = "";
+    if (err instanceof Error) {
+      rawMessage = err.message;
+    } else if (typeof err === "object" && err !== null && "message" in err) {
+      rawMessage = String((err as any).message);
+    } else {
+      rawMessage = String(err);
+    }
+
     let message = rawMessage;
 
-    // Try parsing rawMessage if it's a JSON error string from @google/genai SDK
     try {
-      if (rawMessage.startsWith("{") && rawMessage.endsWith("}")) {
+      if (typeof rawMessage === "string" && rawMessage.startsWith("{") && rawMessage.endsWith("}")) {
         const parsed = JSON.parse(rawMessage);
         if (parsed?.error?.message) {
           message = parsed.error.message;

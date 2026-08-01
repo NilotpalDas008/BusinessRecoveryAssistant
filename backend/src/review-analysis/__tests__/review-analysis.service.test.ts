@@ -1,6 +1,6 @@
 import { ReviewAnalysisService } from "../services/review-analysis.service";
 import { ReviewAnalysisAgent } from "../agents/review-analysis.agent";
-import { Review, AIReview } from "../types/review.types";
+import { Review } from "../types/review.types";
 
 jest.mock("../agents/review-analysis.agent");
 
@@ -13,71 +13,53 @@ describe("ReviewAnalysisService", () => {
     service = new ReviewAnalysisService(mockAgent);
   });
 
-  it("should return an empty array if empty review list provided", async () => {
+  it("should return empty response structure if empty review list provided", async () => {
     const result = await service.analyzeReviews([]);
-    expect(result).toEqual([]);
-    expect(mockAgent.analyze).not.toHaveBeenCalled();
+    expect(result.reviews).toEqual([]);
+    expect(result.summary.totalReviews).toBe(0);
+    expect(mockAgent.analyzeBatch).not.toHaveBeenCalled();
   });
 
-  it("should delegate each review to ReviewAnalysisAgent and return AIReview[]", async () => {
+  it("should send entire array of reviews to ReviewAnalysisAgent in ONE batch call", async () => {
     const reviews: Review[] = [
-      { rating: 5, text: "Awesome pizza", date: "2026-08-01" },
-      { rating: 2, text: "Slow delivery", date: "2026-08-01" },
+      { rating: 5, text: "Awesome pizza", date: "2026-08-01", customerName: "John", itemOrdered: "Pizza" },
+      { rating: 2, text: "Slow delivery", date: "2026-08-01", customerName: "Jane", itemOrdered: "Burger" },
     ];
 
-    const mockAiReview1: AIReview = {
-      ...reviews[0],
-      sentiment: "Positive",
-      category: "Food Quality",
-      emotion: "Happy",
-      urgency: "Low",
-      summary: "Praise for pizza",
-      recommendedAction: "Maintain quality",
-    };
-
-    const mockAiReview2: AIReview = {
-      ...reviews[1],
-      sentiment: "Negative",
-      category: "Wait Time",
-      emotion: "Frustrated",
-      urgency: "Medium",
-      summary: "Delivery delay complaint",
-      recommendedAction: "Optimize delivery route",
-    };
-
-    mockAgent.analyze
-      .mockResolvedValueOnce(mockAiReview1)
-      .mockResolvedValueOnce(mockAiReview2);
+    mockAgent.analyzeBatch.mockResolvedValueOnce({
+      summary: { totalReviews: 2, averageRating: 3.5, overallSentiment: "Neutral" },
+      sentimentScore: { positive: 50, neutral: 0, negative: 50, overallScore: 50 },
+      complaintCategories: [{ category: "Wait Time", count: 1, percentage: 50 }],
+      trendsOverTime: [{ date: "2026-08-01", positive: 1, neutral: 0, negative: 1 }],
+      topRecurringIssues: [{ issue: "Slow delivery", count: 1, percentage: 50, severity: "Medium" }],
+      recommendations: ["Speed up delivery"],
+      reviews: [
+        {
+          reviewId: "REV-1000",
+          sentiment: "Positive",
+          complaintCategory: "General",
+          priority: "Low",
+          summary: "Praise for pizza",
+          recommendedAction: "Maintain quality",
+        },
+        {
+          reviewId: "REV-1001",
+          sentiment: "Negative",
+          complaintCategory: "Wait Time",
+          priority: "Medium",
+          summary: "Delivery delay complaint",
+          recommendedAction: "Optimize delivery route",
+        },
+      ],
+    });
 
     const result = await service.analyzeReviews(reviews);
 
-    expect(result).toHaveLength(2);
-    expect(result[0]).toEqual(mockAiReview1);
-    expect(result[1]).toEqual(mockAiReview2);
-    expect(mockAgent.analyze).toHaveBeenCalledTimes(2);
-  });
-
-  it("should process reviews in batches matching configured batch size", async () => {
-    const batchedService = new ReviewAnalysisService(mockAgent, 2);
-    const reviews: Review[] = [
-      { rating: 5, text: "Review 1", date: "2026-08-01" },
-      { rating: 4, text: "Review 2", date: "2026-08-01" },
-      { rating: 3, text: "Review 3", date: "2026-08-01" },
-    ];
-
-    mockAgent.analyze.mockImplementation(async (r) => ({
-      ...r,
-      sentiment: "Positive",
-      category: "General",
-      emotion: "Neutral",
-      urgency: "Low",
-      summary: "Summary",
-      recommendedAction: "Action",
-    }));
-
-    const result = await batchedService.analyzeReviews(reviews);
-
-    expect(result).toHaveLength(3);
-    expect(mockAgent.analyze).toHaveBeenCalledTimes(3);
+    expect(mockAgent.analyzeBatch).toHaveBeenCalledTimes(1);
+    expect(result.reviews).toHaveLength(2);
+    expect(result.summary.totalReviews).toBe(2);
+    expect(result.sentimentScore.positive).toBe(50);
+    expect(result.reviews[0].customerName).toBe("John");
+    expect(result.reviews[1].customerName).toBe("Jane");
   });
 });

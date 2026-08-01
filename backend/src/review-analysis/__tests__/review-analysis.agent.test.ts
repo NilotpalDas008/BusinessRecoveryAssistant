@@ -21,60 +21,46 @@ describe("ReviewAnalysisAgent", () => {
     agent = new ReviewAnalysisAgent(mockGeminiService);
   });
 
-  it("should successfully analyze a single review and return AIReview", async () => {
-    const review: Review = {
-      rating: 1,
-      text: "Food was cold and service was terrible.",
-      date: "2026-08-01",
-    };
+  it("should successfully invoke Gemini ONCE for batch reviews", async () => {
+    const reviews: Review[] = [
+      {
+        rating: 1,
+        text: "Food was cold and service was terrible.",
+        date: "2026-08-01",
+        customerName: "Alice",
+        itemOrdered: "Pizza",
+      },
+    ];
 
     mockGeminiService.generateJSON.mockResolvedValueOnce({
-      sentiment: "Negative",
-      category: "Food Quality",
-      emotion: "Frustrated",
-      urgency: "High",
-      summary: "Customer complained about cold food and bad service.",
-      recommendedAction: "Investigate kitchen and issue apology.",
+      summary: { totalReviews: 1, averageRating: 1, overallSentiment: "Negative" },
+      sentimentScore: { positive: 0, neutral: 0, negative: 100, overallScore: 0 },
+      complaintCategories: [{ category: "Food Quality", count: 1, percentage: 100 }],
+      trendsOverTime: [{ date: "2026-08-01", positive: 0, neutral: 0, negative: 1 }],
+      topRecurringIssues: [{ issue: "Cold food", count: 1, percentage: 100, severity: "High" }],
+      recommendations: ["Improve kitchen heating"],
+      reviews: [
+        {
+          reviewId: "REV-1000",
+          sentiment: "Negative",
+          complaintCategory: "Food Quality",
+          priority: "High",
+          summary: "Cold food complaint",
+          recommendedAction: "Apologize to customer",
+        },
+      ],
     });
 
-    const result = await agent.analyze(review);
+    const result = await agent.analyzeBatch(reviews);
 
-    expect(result.rating).toBe(1);
-    expect(result.text).toBe("Food was cold and service was terrible.");
-    expect(result.sentiment).toBe("Negative");
-    expect(result.category).toBe("Food Quality");
-    expect(result.emotion).toBe("Frustrated");
-    expect(result.urgency).toBe("High");
-  });
-
-  it("should throw GeminiError if Gemini response is missing required fields", async () => {
-    const review: Review = { rating: 5, text: "Great place!", date: "2026-08-01" };
-
-    mockGeminiService.generateJSON.mockResolvedValue({
-      sentiment: "Positive",
-      // missing category, emotion, urgency, summary, recommendedAction
-    });
-
-    await expect(agent.analyze(review)).rejects.toThrow(GeminiError);
-  });
-
-  it("should return cached result when enableCache is true without re-invoking Gemini", async () => {
-    const cachedAgent = new ReviewAnalysisAgent(mockGeminiService, true);
-    const review: Review = { rating: 5, text: "Delicious burger", date: "2026-08-01" };
-
-    mockGeminiService.generateJSON.mockResolvedValue({
-      sentiment: "Positive",
-      category: "Food Quality",
-      emotion: "Delighted",
-      urgency: "Low",
-      summary: "Customer loved the burger.",
-      recommendedAction: "Keep serving great burgers.",
-    });
-
-    const res1 = await cachedAgent.analyze(review);
-    const res2 = await cachedAgent.analyze(review);
-
-    expect(res1).toEqual(res2);
     expect(mockGeminiService.generateJSON).toHaveBeenCalledTimes(1);
+    expect(result.reviews).toHaveLength(1);
+    expect(result.reviews![0].sentiment).toBe("Negative");
+  });
+
+  it("should handle empty review array without invoking Gemini", async () => {
+    const result = await agent.analyzeBatch([]);
+    expect(mockGeminiService.generateJSON).not.toHaveBeenCalled();
+    expect(result.reviews).toEqual([]);
   });
 });

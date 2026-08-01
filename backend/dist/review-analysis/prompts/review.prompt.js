@@ -1,9 +1,11 @@
-import { Review } from "../types/review.types";
-
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.BATCH_REVIEW_ANALYSIS_SYSTEM_PROMPT = void 0;
+exports.buildBatchReviewAnalysisUserPrompt = buildBatchReviewAnalysisUserPrompt;
 /**
  * System instruction prompt forcing Gemini to return strictly raw JSON with an executive business report.
  */
-export const BATCH_REVIEW_ANALYSIS_SYSTEM_PROMPT = `You are a Principal Management Consultant and Business Intelligence Lead at a top-tier firm (McKinsey, Deloitte, Google Cloud BI).
+exports.BATCH_REVIEW_ANALYSIS_SYSTEM_PROMPT = `You are a Principal Management Consultant and Business Intelligence Lead at a top-tier firm (McKinsey, Deloitte, Google Cloud BI).
 Analyze the provided customer review dataset and return a single valid JSON object.
 
 Return JSON ONLY adhering strictly to this schema:
@@ -79,22 +81,20 @@ Rules:
 3. Never explain your reasoning.
 4. Calculate percentage values based on total number of reviews analyzed.
 5. Ensure every reviewId present in the input array is included in the output reviews array.`;
-
 /**
  * Constructs user prompt input from an array of review objects.
  */
-export function buildBatchReviewAnalysisUserPrompt(reviews: Review[]): string {
-  const formattedReviews = reviews.map((r, idx) => ({
-    reviewId: r.reviewId || `REV-${1000 + idx}`,
-    rating: r.rating,
-    reviewText: r.reviewText || r.text || "",
-    date: r.date || new Date().toISOString().split("T")[0],
-    customerName: r.customerName || r.reviewerName || "Anonymous",
-    itemOrdered: r.itemOrdered || "N/A",
-  }));
-
-  return JSON.stringify({
-    totalReviewsToAnalyze: reviews.length,
-    reviews: formattedReviews,
-  });
+function buildBatchReviewAnalysisUserPrompt(reviews) {
+    const formattedReviews = reviews.map((r, idx) => ({
+        reviewId: r.reviewId || `REV-${1000 + idx}`,
+        rating: r.rating,
+        reviewText: r.reviewText || r.text || "",
+        date: r.date || new Date().toISOString().split("T")[0],
+        customerName: r.customerName || r.reviewerName || "Anonymous",
+        itemOrdered: r.itemOrdered || "N/A",
+    }));
+    return JSON.stringify({
+        totalReviewsToAnalyze: reviews.length,
+        reviews: formattedReviews,
+    });
 }

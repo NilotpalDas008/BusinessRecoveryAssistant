@@ -22,6 +22,7 @@ export interface AnalysisData {
     totalReviews: number;
     averageRating: number;
     overallSentiment: "Positive" | "Neutral" | "Negative" | string;
+    executiveSummary?: string;
   };
   sentimentScore: {
     positive: number;
@@ -47,6 +48,7 @@ export interface AnalysisData {
     severity?: "Critical" | "High" | "Medium" | "Low";
   }>;
   reviews: AIReviewItem[];
+  recommendations?: string[];
 }
 
 interface AnalysisContextType {

@@ -1,130 +1,107 @@
-import { Review, AIReview, Sentiment, Emotion, Urgency, ComplaintCategoryType } from "../types/review.types";
+import { Review } from "../types/review.types";
 import { GeminiService, GeminiError } from "../services/gemini.service";
 import {
-  REVIEW_ANALYSIS_SYSTEM_PROMPT,
-  buildReviewAnalysisUserPrompt,
+  BATCH_REVIEW_ANALYSIS_SYSTEM_PROMPT,
+  buildBatchReviewAnalysisUserPrompt,
 } from "../prompts/review.prompt";
 
+export interface RawBatchReviewAnalysis {
+  summary?:
+    | {
+        totalReviews?: number;
+        averageRating?: number;
+        overallSentiment?: string;
+        executiveSummary?: string;
+      }
+    | string;
+  executiveSummary?: string;
+  sentimentScore?: {
+    positive?: number;
+    neutral?: number;
+    negative?: number;
+    overallScore?: number;
+  };
+  complaintCategories?: Array<{
+    category: string;
+    count: number;
+    percentage: number;
+  }>;
+  trendsOverTime?: Array<{
+    date: string;
+    positive: number;
+    neutral: number;
+    negative: number;
+  }>;
+  topRecurringIssues?: Array<{
+    issue: string;
+    count: number;
+    percentage: number;
+    severity?: "Critical" | "High" | "Medium" | "Low";
+  }>;
+  recommendations?: string[];
+  reviews?: Array<{
+    reviewId?: string;
+    sentiment?: string;
+    complaintCategory?: string;
+    category?: string;
+    priority?: string;
+    urgency?: string;
+    summary?: string;
+    recommendedAction?: string;
+    emotion?: string;
+  }>;
+}
+
 /**
- * Agent responsible for analyzing a single customer review using Google Gemini with optional in-memory caching.
+ * Agent responsible for sending batch customer reviews to Google Gemini in a single prompt.
  */
 export class ReviewAnalysisAgent {
   private geminiService: GeminiService;
-  private cache: Map<string, AIReview> = new Map<string, AIReview>();
-  private enableCache: boolean;
 
-  constructor(geminiService?: GeminiService, enableCache?: boolean) {
+  constructor(geminiService?: GeminiService) {
     this.geminiService = geminiService ?? new GeminiService();
-    this.enableCache =
-      typeof enableCache === "boolean"
-        ? enableCache
-        : process.env.ENABLE_REVIEW_CACHE === "true";
   }
 
   /**
-   * Analyzes a single customer review and extracts structured AI insights.
-   * Checks in-memory cache if enabled, retries once on Gemini failure, and validates output format.
+   * Invokes Gemini ONCE with the entire array of customer reviews.
    *
-   * @param review Single input review object.
-   * @returns Analyzed AI review payload containing sentiment, category, emotion, urgency, summary, and action.
+   * @param reviews Array of input customer reviews.
+   * @returns Raw batch analysis result from Gemini.
    */
-  public async analyze(review: Review): Promise<AIReview> {
-    const cacheKey = review.text.trim().toLowerCase();
-
-    if (this.enableCache && this.cache.has(cacheKey)) {
-      const cached = this.cache.get(cacheKey)!;
+  public async analyzeBatch(reviews: Review[]): Promise<RawBatchReviewAnalysis> {
+    if (!reviews || reviews.length === 0) {
       return {
-        ...cached,
-        rating: review.rating,
-        date: review.date,
+        summary: { totalReviews: 0, averageRating: 0, overallSentiment: "Neutral", executiveSummary: "" },
+        sentimentScore: { positive: 0, neutral: 0, negative: 0, overallScore: 0 },
+        complaintCategories: [],
+        trendsOverTime: [],
+        topRecurringIssues: [],
+        recommendations: [],
+        reviews: [],
       };
     }
 
-    const userPrompt = buildReviewAnalysisUserPrompt(review);
-    const systemPrompt = REVIEW_ANALYSIS_SYSTEM_PROMPT;
-    let result: AIReview;
+    const userPrompt = buildBatchReviewAnalysisUserPrompt(reviews);
+    const systemPrompt = BATCH_REVIEW_ANALYSIS_SYSTEM_PROMPT;
 
     try {
-      result = await this.executeAnalysis(review, userPrompt, systemPrompt);
-    } catch {
-      try {
-        result = await this.executeAnalysis(review, userPrompt, systemPrompt);
-      } catch (retryError) {
-        if (
-          retryError instanceof GeminiError ||
-          (typeof retryError === "object" && retryError !== null && "errorCode" in retryError)
-        ) {
-          throw retryError;
-        }
-        const message =
-          retryError instanceof Error ? retryError.message : "Review analysis failed.";
-        throw new GeminiError(
-          `Review Analysis Agent failed after retry: ${message}`,
-          "AGENT_EXECUTION_FAILED",
-          503
-        );
+      return await this.geminiService.generateJSON<RawBatchReviewAnalysis>(
+        userPrompt,
+        systemPrompt
+      );
+    } catch (error) {
+      if (
+        error instanceof GeminiError ||
+        (typeof error === "object" && error !== null && "errorCode" in error)
+      ) {
+        throw error;
       }
-    }
-
-    if (this.enableCache) {
-      this.cache.set(cacheKey, result);
-    }
-
-    return result;
-  }
-
-  /**
-   * Internal helper executing single analysis pass and validating output format.
-   */
-  private async executeAnalysis(
-    review: Review,
-    userPrompt: string,
-    systemPrompt: string
-  ): Promise<AIReview> {
-    const rawAnalysis = await this.geminiService.generateJSON<Partial<AIReview>>(
-      userPrompt,
-      systemPrompt
-    );
-
-    if (!this.isValidAnalysisOutput(rawAnalysis)) {
+      const message = error instanceof Error ? error.message : "Batch analysis failed.";
       throw new GeminiError(
-        "Gemini response is missing required analysis fields.",
-        "INVALID_AI_OUTPUT",
-        500
+        `Review Analysis Agent failed: ${message}`,
+        "AGENT_EXECUTION_FAILED",
+        503
       );
     }
-
-    return {
-      rating: review.rating,
-      text: review.text,
-      date: review.date,
-      sentiment: rawAnalysis.sentiment.trim() as Sentiment,
-      category: rawAnalysis.category.trim() as ComplaintCategoryType,
-      emotion: rawAnalysis.emotion.trim() as Emotion,
-      urgency: rawAnalysis.urgency.trim() as Urgency,
-      summary: rawAnalysis.summary.trim(),
-      recommendedAction: rawAnalysis.recommendedAction.trim(),
-    };
-  }
-
-  /**
-   * Validates that all required AI analysis fields exist and are non-empty strings.
-   */
-  private isValidAnalysisOutput(data: unknown): data is Record<string, string> {
-    if (typeof data !== "object" || data === null) {
-      return false;
-    }
-    const obj = data as Record<string, unknown>;
-    const requiredKeys = [
-      "sentiment",
-      "category",
-      "emotion",
-      "urgency",
-      "summary",
-      "recommendedAction",
-    ];
-    return requiredKeys.every(
-      (key) => typeof obj[key] === "string" && (obj[key] as string).trim().length > 0
-    );
   }
 }

@@ -25,6 +25,7 @@ export interface AnalyzeResponse {
   trendsOverTime: Trend[];
   topRecurringIssues: RecurringIssue[];
   reviews: AIReview[];
+  recommendations?: string[];
 }
 
 /**
