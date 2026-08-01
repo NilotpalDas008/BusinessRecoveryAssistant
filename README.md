@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/MongoDB-Database-brightgreen?logo=mongodb" />
   <img src="https://img.shields.io/badge/Gemini-AI-blue?logo=google" />
   <img src="https://img.shields.io/badge/Clerk-Authentication-purple" />
-  <img src="https://img.shields.io/badge/License-MIT-yellow" />
+ 
 </p>
 
 ---
