@@ -129,29 +129,6 @@ The analytics dashboard provides:
 
 ---
 
-## 🚀 Getting Started
-
-### Clone Repository
-
-```bash
-git clone https://github.com/your-username/ReviveAI.git
-```
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-### Backend
-
-```bash
-cd backend
-npm install
-npm run dev
-```
 
 ---
 
