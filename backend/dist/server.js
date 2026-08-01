@@ -9,6 +9,7 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const database_1 = require("./config/database");
 const businessOwner_routes_1 = __importDefault(require("./routes/businessOwner.routes"));
 const dashboard_routes_1 = __importDefault(require("./routes/dashboard.routes"));
+const review_routes_1 = __importDefault(require("./review-analysis/routes/review.routes"));
 // Load environment variables
 dotenv_1.default.config();
 const app = (0, express_1.default)();
@@ -21,6 +22,8 @@ app.use(express_1.default.json());
 // API Routes
 app.use("/api/business-owner", businessOwner_routes_1.default);
 app.use("/dashboard", dashboard_routes_1.default);
+app.use("/api/reviews", review_routes_1.default);
+app.use("/api/v1", review_routes_1.default);
 // Health check endpoint
 app.get("/health", (_req, res) => {
     res.status(200).json({ status: "OK", timestamp: new Date().toISOString() });
