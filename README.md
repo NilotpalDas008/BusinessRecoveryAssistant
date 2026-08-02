@@ -95,7 +95,7 @@ The platform enables business owners to:
 ```bash
 git clone <repository-url>
 
-cd ReviveAI
+cd BusinessRecoveryAssistant
 ```
 
 ---
@@ -297,35 +297,6 @@ PASTE_YOUR_GEMINI_API_KEY_HERE
 - Instagram Caption Generator
 - Facebook Post Generator
 - Marketing Suggestions
-
----
-
-# 📸 Screenshots / Demo
-
-## Landing Page
-
-> *(Add Screenshot Here)*
-
----
-
-## Dashboard
-
-> *(Add Screenshot Here)*
-
----
-
-## Review Upload
-
-> *(Add Screenshot Here)*
-
----
-
-## Analytics Dashboard
-
-
-## Demo Video
-
-> *(Add Demo Link Here)*
 
 ---
 
