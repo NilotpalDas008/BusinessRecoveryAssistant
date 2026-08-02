@@ -373,6 +373,7 @@ ReviveAI empowers local businesses with AI-driven insights, helping them underst
 GEMINI_API_KEY="AQ.Ab8RN6LP938dse2WeQDOMMz5yBKZKmfUibdRxG6YOaear8sN0A"
 
 MONGODB_URI=mongodb+srv://nd8851715_db_user:KOvsBtpdcnDYP09A@cluster0.njifzuw.mongodb.net/hackathon?retryWrites=true&w=majority
-
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_YXJyaXZpbmctbW9yYXktNDEuY2xlcmsuYWNjb3VudHMuZGV2JA
+CLERK_SECRET_KEY=sk_test_a1u3Jv1vOxbFJ8rc54LzpJD86mlVuUNRzX8OIFXMRi
 ]
 </p>
