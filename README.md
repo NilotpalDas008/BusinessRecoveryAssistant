@@ -185,3 +185,9 @@ Upcoming AI capabilities include:
 ## 👨‍💻 Team
 
 Built with ❤️ during the hackathon to help businesses turn customer feedback into business growth.
+
+[ For hackathon demo and review i am uploading the  
+GEMINI_API_KEY="AQ.Ab8RN6LP938dse2WeQDOMMz5yBKZKmfUibdRxG6YOaear8sN0A"
+MONGODB_URI=mongodb+srv://nd8851715_db_user:KOvsBtpdcnDYP09A@cluster0.njifzuw.mongodb.net/hackathon?retryWrites=true&w=majority
+]
+
